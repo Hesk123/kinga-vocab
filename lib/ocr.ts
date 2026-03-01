@@ -27,37 +27,72 @@ function getClient(): OpenAI {
 function buildSystemPrompt(targetLang: Language): string {
   const langConfig = getLanguageConfig(targetLang)
 
-  const examples: Record<string, string> = {
-    de: `Example output:
-{"pairs": [{"polish": "pies", "translation": "der Hund"}, {"polish": "jeść", "translation": "essen"}, {"polish": "szybki", "translation": "schnell"}, {"polish": "szkoła", "translation": "die Schule"}]}
+  const langExamples: Record<string, string> = {
+    de: `EXAMPLES of correct output:
+{"pairs": [
+  {"polish": "podróż", "translation": "die Reise"},
+  {"polish": "samochód", "translation": "das Auto"},
+  {"polish": "jechać", "translation": "fahren"},
+  {"polish": "szybki", "translation": "schnell"},
+  {"polish": "lotnisko", "translation": "der Flughafen"},
+  {"polish": "wygodny", "translation": "bequem"}
+]}
 
-For German nouns, ALWAYS add the article (der/die/das) before the noun.`,
-    en: `Example output:
-{"pairs": [{"polish": "pies", "translation": "dog"}, {"polish": "jeść", "translation": "to eat"}, {"polish": "szybki", "translation": "fast"}]}`,
-    es: `Example output:
-{"pairs": [{"polish": "pies", "translation": "el perro"}, {"polish": "jeść", "translation": "comer"}, {"polish": "szybki", "translation": "rápido"}]}`,
-    fr: `Example output:
-{"pairs": [{"polish": "pies", "translation": "le chien"}, {"polish": "jeść", "translation": "manger"}, {"polish": "szybki", "translation": "rapide"}]}`,
-    it: `Example output:
-{"pairs": [{"polish": "pies", "translation": "il cane"}, {"polish": "jeść", "translation": "mangiare"}, {"polish": "szybki", "translation": "veloce"}]}`,
-    pt: `Example output:
-{"pairs": [{"polish": "pies", "translation": "o cão"}, {"polish": "jeść", "translation": "comer"}, {"polish": "szybki", "translation": "rápido"}]}`,
+For German nouns, ALWAYS include the article (der/die/das).`,
+    en: `EXAMPLES of correct output:
+{"pairs": [
+  {"polish": "podróż", "translation": "journey"},
+  {"polish": "samochód", "translation": "car"},
+  {"polish": "jechać", "translation": "to drive"},
+  {"polish": "szybki", "translation": "fast"},
+  {"polish": "lotnisko", "translation": "airport"},
+  {"polish": "wygodny", "translation": "comfortable"}
+]}`,
+    es: `EXAMPLES of correct output:
+{"pairs": [
+  {"polish": "podróż", "translation": "el viaje"},
+  {"polish": "samochód", "translation": "el coche"},
+  {"polish": "jechać", "translation": "conducir"},
+  {"polish": "szybki", "translation": "rápido"}
+]}`,
+    fr: `EXAMPLES of correct output:
+{"pairs": [
+  {"polish": "podróż", "translation": "le voyage"},
+  {"polish": "samochód", "translation": "la voiture"},
+  {"polish": "jechać", "translation": "conduire"},
+  {"polish": "szybki", "translation": "rapide"}
+]}`,
+    it: `EXAMPLES of correct output:
+{"pairs": [
+  {"polish": "podróż", "translation": "il viaggio"},
+  {"polish": "samochód", "translation": "la macchina"},
+  {"polish": "jechać", "translation": "guidare"},
+  {"polish": "szybki", "translation": "veloce"}
+]}`,
+    pt: `EXAMPLES of correct output:
+{"pairs": [
+  {"polish": "podróż", "translation": "a viagem"},
+  {"polish": "samochód", "translation": "o carro"},
+  {"polish": "jechać", "translation": "conduzir"},
+  {"polish": "szybki", "translation": "rápido"}
+]}`,
   }
 
-  return `You are a vocabulary extractor. A Polish student is learning ${langConfig.nativeName}.
+  return `You are a Polish-${langConfig.nativeName} dictionary. Your job is to find vocabulary in the image and TRANSLATE each word into Polish.
 
-Extract Polish-${langConfig.nativeName} vocabulary pairs from the image.
+From the image, extract important vocabulary words and translate each one into Polish.
 
-CRITICAL RULES:
-1. The "polish" field MUST contain the POLISH word (Polish examples: pies, kot, dom, jeść, pisać, duży, szybko)
-2. The "translation" field MUST contain the ${langConfig.nativeName} word
-3. Extract ALL word types: nouns, verbs, adjectives, adverbs, phrases, expressions
-4. Do NOT put ${langConfig.nativeName} words in the "polish" field — that field is ONLY for Polish
-${targetLang === 'de' ? '5. For German nouns, ALWAYS add the article (der/die/das) before the noun\n' : ''}
-${examples[targetLang] || examples.en}
+Output format - ONLY valid JSON:
+{"pairs": [{"polish": "POLISH_TRANSLATION", "translation": "${langConfig.nativeName.toUpperCase()}_WORD"}]}
 
-Return ONLY this JSON format, no markdown, no explanation:
-{"pairs": [{"polish": "...", "translation": "...", "example": "..."}]}`
+${langExamples[targetLang] || langExamples.en}
+
+RULES:
+- "polish" = Polish translation (MUST be in Polish, NOT in ${langConfig.nativeName})
+- "translation" = ${langConfig.nativeName} word${targetLang === 'de' ? ' with article for nouns (der/die/das)' : ''}
+- Include nouns, verbs, adjectives, adverbs, useful phrases
+- You MUST translate every word to Polish. If "polish" contains a ${langConfig.nativeName} word, that is WRONG.
+- Return ONLY JSON, no markdown, no explanation`
 }
 
 function parseOcrResponse(content: string): ExtractedPair[] {
@@ -132,37 +167,70 @@ export async function extractVocabFromText(
       {
         role: 'system',
         content: (() => {
-          const examples: Record<string, string> = {
-            de: `Example output:
-{"pairs": [{"polish": "pies", "translation": "der Hund"}, {"polish": "jeść", "translation": "essen"}, {"polish": "szybki", "translation": "schnell"}, {"polish": "szkoła", "translation": "die Schule"}]}
+          const langExamples: Record<string, string> = {
+            de: `EXAMPLES of correct output:
+{"pairs": [
+  {"polish": "podróż", "translation": "die Reise"},
+  {"polish": "samochód", "translation": "das Auto"},
+  {"polish": "jechać", "translation": "fahren"},
+  {"polish": "szybki", "translation": "schnell"},
+  {"polish": "lotnisko", "translation": "der Flughafen"},
+  {"polish": "wygodny", "translation": "bequem"}
+]}
 
-For German nouns, ALWAYS add the article (der/die/das) before the noun.`,
-            en: `Example output:
-{"pairs": [{"polish": "pies", "translation": "dog"}, {"polish": "jeść", "translation": "to eat"}, {"polish": "szybki", "translation": "fast"}]}`,
-            es: `Example output:
-{"pairs": [{"polish": "pies", "translation": "el perro"}, {"polish": "jeść", "translation": "comer"}, {"polish": "szybki", "translation": "rápido"}]}`,
-            fr: `Example output:
-{"pairs": [{"polish": "pies", "translation": "le chien"}, {"polish": "jeść", "translation": "manger"}, {"polish": "szybki", "translation": "rapide"}]}`,
-            it: `Example output:
-{"pairs": [{"polish": "pies", "translation": "il cane"}, {"polish": "jeść", "translation": "mangiare"}, {"polish": "szybki", "translation": "veloce"}]}`,
-            pt: `Example output:
-{"pairs": [{"polish": "pies", "translation": "o cão"}, {"polish": "jeść", "translation": "comer"}, {"polish": "szybki", "translation": "rápido"}]}`,
+For German nouns, ALWAYS include the article (der/die/das).`,
+            en: `EXAMPLES of correct output:
+{"pairs": [
+  {"polish": "podróż", "translation": "journey"},
+  {"polish": "samochód", "translation": "car"},
+  {"polish": "jechać", "translation": "to drive"},
+  {"polish": "szybki", "translation": "fast"}
+]}`,
+            es: `EXAMPLES of correct output:
+{"pairs": [
+  {"polish": "podróż", "translation": "el viaje"},
+  {"polish": "samochód", "translation": "el coche"},
+  {"polish": "jechać", "translation": "conducir"},
+  {"polish": "szybki", "translation": "rápido"}
+]}`,
+            fr: `EXAMPLES of correct output:
+{"pairs": [
+  {"polish": "podróż", "translation": "le voyage"},
+  {"polish": "samochód", "translation": "la voiture"},
+  {"polish": "jechać", "translation": "conduire"},
+  {"polish": "szybki", "translation": "rapide"}
+]}`,
+            it: `EXAMPLES of correct output:
+{"pairs": [
+  {"polish": "podróż", "translation": "il viaggio"},
+  {"polish": "samochód", "translation": "la macchina"},
+  {"polish": "jechać", "translation": "guidare"},
+  {"polish": "szybki", "translation": "veloce"}
+]}`,
+            pt: `EXAMPLES of correct output:
+{"pairs": [
+  {"polish": "podróż", "translation": "a viagem"},
+  {"polish": "samochód", "translation": "o carro"},
+  {"polish": "jechać", "translation": "conduzir"},
+  {"polish": "szybki", "translation": "rápido"}
+]}`,
           }
 
-          return `You are a vocabulary extractor. A Polish student is learning ${langConfig.nativeName}.
+          return `You are a Polish-${langConfig.nativeName} dictionary. Your job is to find vocabulary in the text and TRANSLATE each word into Polish.
 
-Extract Polish-${langConfig.nativeName} vocabulary pairs from the text below.
+From the text below, extract important vocabulary words and translate each one into Polish.
 
-CRITICAL RULES:
-1. The "polish" field MUST contain the POLISH word (Polish examples: pies, kot, dom, jeść, pisać, duży, szybko)
-2. The "translation" field MUST contain the ${langConfig.nativeName} word
-3. Extract ALL word types: nouns, verbs, adjectives, adverbs, phrases, expressions
-4. Do NOT put ${langConfig.nativeName} words in the "polish" field — that field is ONLY for Polish
-${targetLang === 'de' ? '5. For German nouns, ALWAYS add the article (der/die/das) before the noun\n' : ''}
-${examples[targetLang] || examples.en}
+Output format - ONLY valid JSON:
+{"pairs": [{"polish": "POLISH_TRANSLATION", "translation": "${langConfig.nativeName.toUpperCase()}_WORD"}]}
 
-Return ONLY this JSON format, no markdown, no explanation:
-{"pairs": [{"polish": "...", "translation": "...", "example": "..."}]}`
+${langExamples[targetLang] || langExamples.en}
+
+RULES:
+- "polish" = Polish translation (MUST be in Polish, NOT in ${langConfig.nativeName})
+- "translation" = ${langConfig.nativeName} word${targetLang === 'de' ? ' with article for nouns (der/die/das)' : ''}
+- Include nouns, verbs, adjectives, adverbs, useful phrases
+- You MUST translate every word to Polish. If "polish" contains a ${langConfig.nativeName} word, that is WRONG.
+- Return ONLY JSON, no markdown, no explanation`
         })(),
       },
       {
