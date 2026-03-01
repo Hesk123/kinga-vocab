@@ -26,24 +26,38 @@ function getClient(): OpenAI {
 
 function buildSystemPrompt(targetLang: Language): string {
   const langConfig = getLanguageConfig(targetLang)
-  return `You are a vocabulary extractor for a Polish language learner. The user's NATIVE language is POLISH. They are learning ${langConfig.nativeName}.
 
-CRITICAL: Every pair MUST have one side in POLISH and the other in ${langConfig.nativeName}. NEVER return pairs where both sides are the same language.
+  const examples: Record<string, string> = {
+    de: `Example output:
+{"pairs": [{"polish": "pies", "translation": "der Hund"}, {"polish": "jeść", "translation": "essen"}, {"polish": "szybki", "translation": "schnell"}, {"polish": "szkoła", "translation": "die Schule"}]}
 
-Return ONLY valid JSON in this exact format:
-{"pairs": [{"polish": "...", "translation": "...", "example": "..."}]}
+For German nouns, ALWAYS add the article (der/die/das) before the noun.`,
+    en: `Example output:
+{"pairs": [{"polish": "pies", "translation": "dog"}, {"polish": "jeść", "translation": "to eat"}, {"polish": "szybki", "translation": "fast"}]}`,
+    es: `Example output:
+{"pairs": [{"polish": "pies", "translation": "el perro"}, {"polish": "jeść", "translation": "comer"}, {"polish": "szybki", "translation": "rápido"}]}`,
+    fr: `Example output:
+{"pairs": [{"polish": "pies", "translation": "le chien"}, {"polish": "jeść", "translation": "manger"}, {"polish": "szybki", "translation": "rapide"}]}`,
+    it: `Example output:
+{"pairs": [{"polish": "pies", "translation": "il cane"}, {"polish": "jeść", "translation": "mangiare"}, {"polish": "szybki", "translation": "veloce"}]}`,
+    pt: `Example output:
+{"pairs": [{"polish": "pies", "translation": "o cão"}, {"polish": "jeść", "translation": "comer"}, {"polish": "szybki", "translation": "rápido"}]}`,
+  }
 
-Rules:
-- "polish" = the POLISH word or phrase (this MUST be in Polish language)
-- "translation" = the ${langConfig.nativeName} translation (this MUST be in ${langConfig.nativeName})
-- "example" = an optional example sentence in ${langConfig.nativeName} (include only if visible in the image)
-- Extract ALL vocabulary: nouns, verbs, adjectives, adverbs, phrases, and expressions. Do NOT skip any word type.
-- If words appear in ${langConfig.nativeName} only, provide the Polish translation yourself
-- If words appear in Polish only, provide the ${langConfig.nativeName} translation yourself
-${targetLang === 'de' ? `- IMPORTANT FOR GERMAN: Extract ALL word types (nouns, verbs, adjectives, adverbs, phrases)\n- For German NOUNS: ALWAYS include the article (der/die/das). Examples: "der Hund", "die Katze", "das Haus"\n- For German VERBS: use infinitive form. Examples: "sprechen", "laufen"\n- For German ADJECTIVES: use base form. Examples: "schnell", "groß"\n` : ''}- Ignore page numbers, exercise instructions, headers, and non-vocabulary content
-- Clean up any OCR artifacts (fix obvious typos in extracted text)
-- If you cannot find any vocabulary pairs, return {"pairs": []}
-- Return ONLY the JSON object, no markdown, no explanation`
+  return `You are a vocabulary extractor. A Polish student is learning ${langConfig.nativeName}.
+
+Extract Polish-${langConfig.nativeName} vocabulary pairs from the image.
+
+CRITICAL RULES:
+1. The "polish" field MUST contain the POLISH word (Polish examples: pies, kot, dom, jeść, pisać, duży, szybko)
+2. The "translation" field MUST contain the ${langConfig.nativeName} word
+3. Extract ALL word types: nouns, verbs, adjectives, adverbs, phrases, expressions
+4. Do NOT put ${langConfig.nativeName} words in the "polish" field — that field is ONLY for Polish
+${targetLang === 'de' ? '5. For German nouns, ALWAYS add the article (der/die/das) before the noun\n' : ''}
+${examples[targetLang] || examples.en}
+
+Return ONLY this JSON format, no markdown, no explanation:
+{"pairs": [{"polish": "...", "translation": "...", "example": "..."}]}`
 }
 
 function parseOcrResponse(content: string): ExtractedPair[] {
@@ -117,26 +131,39 @@ export async function extractVocabFromText(
     messages: [
       {
         role: 'system',
-        content: `You are a vocabulary extractor for a Polish language learner. The user's NATIVE language is POLISH. They are learning ${langConfig.nativeName}.
+        content: (() => {
+          const examples: Record<string, string> = {
+            de: `Example output:
+{"pairs": [{"polish": "pies", "translation": "der Hund"}, {"polish": "jeść", "translation": "essen"}, {"polish": "szybki", "translation": "schnell"}, {"polish": "szkoła", "translation": "die Schule"}]}
 
-CRITICAL: Every pair MUST have one side in POLISH and the other in ${langConfig.nativeName}. NEVER return pairs where both sides are the same language.
+For German nouns, ALWAYS add the article (der/die/das) before the noun.`,
+            en: `Example output:
+{"pairs": [{"polish": "pies", "translation": "dog"}, {"polish": "jeść", "translation": "to eat"}, {"polish": "szybki", "translation": "fast"}]}`,
+            es: `Example output:
+{"pairs": [{"polish": "pies", "translation": "el perro"}, {"polish": "jeść", "translation": "comer"}, {"polish": "szybki", "translation": "rápido"}]}`,
+            fr: `Example output:
+{"pairs": [{"polish": "pies", "translation": "le chien"}, {"polish": "jeść", "translation": "manger"}, {"polish": "szybki", "translation": "rapide"}]}`,
+            it: `Example output:
+{"pairs": [{"polish": "pies", "translation": "il cane"}, {"polish": "jeść", "translation": "mangiare"}, {"polish": "szybki", "translation": "veloce"}]}`,
+            pt: `Example output:
+{"pairs": [{"polish": "pies", "translation": "o cão"}, {"polish": "jeść", "translation": "comer"}, {"polish": "szybki", "translation": "rápido"}]}`,
+          }
 
-Return ONLY valid JSON in this exact format:
-{"pairs": [{"polish": "...", "translation": "...", "example": "..."}]}
+          return `You are a vocabulary extractor. A Polish student is learning ${langConfig.nativeName}.
 
-Rules:
-- "polish" = the POLISH word or phrase (this MUST be in Polish language)
-- "translation" = the ${langConfig.nativeName} translation (this MUST be in ${langConfig.nativeName})
-- "example" = an optional example sentence in ${langConfig.nativeName} (include only if present in the text)
-- Extract ALL vocabulary: nouns, verbs, adjectives, adverbs, phrases, and expressions. Do NOT skip any word type.
-- If words appear in ${langConfig.nativeName} only, provide the Polish translation yourself
-- If words appear in Polish only, provide the ${langConfig.nativeName} translation yourself
-${targetLang === 'de' ? `- IMPORTANT FOR GERMAN: Extract ALL word types (nouns, verbs, adjectives, adverbs, phrases)\n- For German NOUNS: ALWAYS include the article (der/die/das). Examples: "der Hund", "die Katze", "das Haus"\n- For German VERBS: use infinitive form. Examples: "sprechen", "laufen"\n- For German ADJECTIVES: use base form. Examples: "schnell", "groß"\n` : ''}- Ignore page numbers, exercise instructions, headers, and non-vocabulary content
-- If text contains vocabulary lists, word tables, or flashcard-style content, extract ALL pairs regardless of word type
-- If text is a lesson or article, extract key vocabulary terms with their translations
-- Clean up any formatting artifacts
-- If you cannot find any vocabulary pairs, return {"pairs": []}
-- Return ONLY the JSON object, no markdown, no explanation`,
+Extract Polish-${langConfig.nativeName} vocabulary pairs from the text below.
+
+CRITICAL RULES:
+1. The "polish" field MUST contain the POLISH word (Polish examples: pies, kot, dom, jeść, pisać, duży, szybko)
+2. The "translation" field MUST contain the ${langConfig.nativeName} word
+3. Extract ALL word types: nouns, verbs, adjectives, adverbs, phrases, expressions
+4. Do NOT put ${langConfig.nativeName} words in the "polish" field — that field is ONLY for Polish
+${targetLang === 'de' ? '5. For German nouns, ALWAYS add the article (der/die/das) before the noun\n' : ''}
+${examples[targetLang] || examples.en}
+
+Return ONLY this JSON format, no markdown, no explanation:
+{"pairs": [{"polish": "...", "translation": "...", "example": "..."}]}`
+        })(),
       },
       {
         role: 'user',
