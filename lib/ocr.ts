@@ -26,17 +26,20 @@ function getClient(): OpenAI {
 
 function buildSystemPrompt(targetLang: Language): string {
   const langConfig = getLanguageConfig(targetLang)
-  return `You are a vocabulary extractor. Given an image of a language learning exercise, textbook page, or handwritten notes, extract all vocabulary pairs where one language is Polish and the other is ${langConfig.nativeName} (${langConfig.label}).
+  return `You are a vocabulary extractor for a Polish language learner. The user's NATIVE language is POLISH. They are learning ${langConfig.nativeName}.
+
+CRITICAL: Every pair MUST have one side in POLISH and the other in ${langConfig.nativeName}. NEVER return pairs where both sides are the same language.
 
 Return ONLY valid JSON in this exact format:
 {"pairs": [{"polish": "...", "translation": "...", "example": "..."}]}
 
 Rules:
-- "polish" = the Polish word or phrase
-- "translation" = the ${langConfig.nativeName} translation
+- "polish" = the POLISH word or phrase (this MUST be in Polish language)
+- "translation" = the ${langConfig.nativeName} translation (this MUST be in ${langConfig.nativeName})
 - "example" = an optional example sentence in ${langConfig.nativeName} (include only if visible in the image)
-- If a word pair direction is reversed (${langConfig.nativeName} first, Polish second), still put Polish in "polish" and ${langConfig.nativeName} in "translation"
-- Ignore page numbers, exercise instructions, headers, and non-vocabulary content
+- If words appear in ${langConfig.nativeName} only, provide the Polish translation yourself
+- If words appear in Polish only, provide the ${langConfig.nativeName} translation yourself
+${targetLang === 'de' ? `- GERMAN ARTICLES: For ALL German nouns, ALWAYS include the article (der/die/das) before the noun. Example: "der Hund", "die Katze", "das Haus". This is mandatory for every noun.\n` : ''}- Ignore page numbers, exercise instructions, headers, and non-vocabulary content
 - Clean up any OCR artifacts (fix obvious typos in extracted text)
 - If you cannot find any vocabulary pairs, return {"pairs": []}
 - Return ONLY the JSON object, no markdown, no explanation`
@@ -113,17 +116,20 @@ export async function extractVocabFromText(
     messages: [
       {
         role: 'system',
-        content: `You are a vocabulary extractor. Given text content from a document, extract all vocabulary pairs where one language is Polish and the other is ${langConfig.nativeName} (${langConfig.label}).
+        content: `You are a vocabulary extractor for a Polish language learner. The user's NATIVE language is POLISH. They are learning ${langConfig.nativeName}.
+
+CRITICAL: Every pair MUST have one side in POLISH and the other in ${langConfig.nativeName}. NEVER return pairs where both sides are the same language.
 
 Return ONLY valid JSON in this exact format:
 {"pairs": [{"polish": "...", "translation": "...", "example": "..."}]}
 
 Rules:
-- "polish" = the Polish word or phrase
-- "translation" = the ${langConfig.nativeName} translation
+- "polish" = the POLISH word or phrase (this MUST be in Polish language)
+- "translation" = the ${langConfig.nativeName} translation (this MUST be in ${langConfig.nativeName})
 - "example" = an optional example sentence in ${langConfig.nativeName} (include only if present in the text)
-- If a word pair direction is reversed (${langConfig.nativeName} first, Polish second), still put Polish in "polish" and ${langConfig.nativeName} in "translation"
-- Ignore page numbers, exercise instructions, headers, and non-vocabulary content
+- If words appear in ${langConfig.nativeName} only, provide the Polish translation yourself
+- If words appear in Polish only, provide the ${langConfig.nativeName} translation yourself
+${targetLang === 'de' ? `- GERMAN ARTICLES: For ALL German nouns, ALWAYS include the article (der/die/das) before the noun. Example: "der Hund", "die Katze", "das Haus". This is mandatory for every noun.\n` : ''}- Ignore page numbers, exercise instructions, headers, and non-vocabulary content
 - If text contains vocabulary lists, word tables, or flashcard-style content, extract ALL pairs
 - If text is a lesson or article, extract key vocabulary terms with their translations
 - Clean up any formatting artifacts
