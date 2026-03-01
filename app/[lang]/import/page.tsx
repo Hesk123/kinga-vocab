@@ -6,11 +6,13 @@ import type { Language, NewVocabEntry } from '@/lib/types'
 import { isValidLanguage } from '@/lib/constants'
 import { useVocab } from '@/hooks/useVocab'
 import { useOcr } from '@/hooks/useOcr'
+import { useFileImport } from '@/hooks/useFileImport'
 import { OcrUpload } from '@/components/vocab/OcrUpload'
 import { OcrReview } from '@/components/vocab/OcrReview'
+import { FileUpload } from '@/components/vocab/FileUpload'
 import { PasteImport } from '@/components/vocab/PasteImport'
 
-type ImportTab = 'photo' | 'paste'
+type ImportTab = 'photo' | 'file' | 'paste'
 
 interface ImportPageProps {
   params: Promise<{ lang: string }>
@@ -60,12 +62,29 @@ export default function ImportPage({ params }: ImportPageProps) {
     reset: resetOcr,
   } = useOcr(lang)
 
+  const {
+    state: fileState,
+    pairs: filePairs,
+    error: fileError,
+    fileName,
+    processFile,
+    reset: resetFile,
+  } = useFileImport(lang)
+
   const handleOcrFileSelected = useCallback(
     (file: File) => {
       setSuccessCount(null)
       uploadImage(file)
     },
     [uploadImage]
+  )
+
+  const handleFileSelected = useCallback(
+    (file: File) => {
+      setSuccessCount(null)
+      processFile(file)
+    },
+    [processFile]
   )
 
   const handleOcrAdd = useCallback(
@@ -89,6 +108,27 @@ export default function ImportPage({ params }: ImportPageProps) {
     [addEntries, resetOcr]
   )
 
+  const handleFileAdd = useCallback(
+    (
+      selected: Array<{
+        polish: string
+        translation: string
+        example?: string
+      }>
+    ) => {
+      const newEntries: NewVocabEntry[] = selected.map((pair) => ({
+        polish: pair.polish,
+        translation: pair.translation,
+        example: pair.example,
+        source: 'paste' as const,
+      }))
+      addEntries(newEntries)
+      setSuccessCount(selected.length)
+      resetFile()
+    },
+    [addEntries, resetFile]
+  )
+
   const handlePasteAdd = useCallback(
     (selected: Array<{ polish: string; translation: string }>) => {
       const newEntries: NewVocabEntry[] = selected.map((pair) => ({
@@ -102,11 +142,12 @@ export default function ImportPage({ params }: ImportPageProps) {
     [addEntries]
   )
 
-  const showTabs = ocrState === 'idle' || ocrState === 'error'
+  const showTabs =
+    (ocrState === 'idle' || ocrState === 'error') &&
+    (fileState === 'idle' || fileState === 'error')
 
   return (
     <div className="px-4 py-5">
-      {/* Page title */}
       <h2
         className="mb-5 text-lg font-bold"
         style={{ color: 'var(--text)' }}
@@ -114,7 +155,6 @@ export default function ImportPage({ params }: ImportPageProps) {
         Importuj slowka
       </h2>
 
-      {/* Success banner */}
       {successCount !== null && (
         <SuccessBanner
           count={successCount}
@@ -122,7 +162,6 @@ export default function ImportPage({ params }: ImportPageProps) {
         />
       )}
 
-      {/* Tab switcher — hidden when OCR is loading or in review */}
       {showTabs && (
         <div
           className="mb-5 flex rounded-xl p-1"
@@ -133,16 +172,7 @@ export default function ImportPage({ params }: ImportPageProps) {
           <TabButton
             label="Zdjecie"
             icon={
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
                 <circle cx="12" cy="13" r="3" />
               </svg>
@@ -151,18 +181,22 @@ export default function ImportPage({ params }: ImportPageProps) {
             onClick={() => setActiveTab('photo')}
           />
           <TabButton
+            label="Plik"
+            icon={
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+              </svg>
+            }
+            isActive={activeTab === 'file'}
+            onClick={() => setActiveTab('file')}
+          />
+          <TabButton
             label="Wklej"
             icon={
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
                 <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
               </svg>
@@ -173,7 +207,6 @@ export default function ImportPage({ params }: ImportPageProps) {
         </div>
       )}
 
-      {/* Tab content */}
       {activeTab === 'photo' && (
         <div>
           {ocrState === 'review' && ocrPairs.length > 0 ? (
@@ -194,6 +227,26 @@ export default function ImportPage({ params }: ImportPageProps) {
         </div>
       )}
 
+      {activeTab === 'file' && (
+        <div>
+          {fileState === 'review' && filePairs.length > 0 ? (
+            <OcrReview
+              pairs={filePairs}
+              onAdd={handleFileAdd}
+              onBack={resetFile}
+            />
+          ) : (
+            <FileUpload
+              onFileSelected={handleFileSelected}
+              isLoading={fileState === 'loading'}
+              error={fileError}
+              fileName={fileName}
+              onRetry={resetFile}
+            />
+          )}
+        </div>
+      )}
+
       {activeTab === 'paste' && (
         <PasteImport
           existingEntries={entries}
@@ -203,8 +256,6 @@ export default function ImportPage({ params }: ImportPageProps) {
     </div>
   )
 }
-
-/* --- Tab Button Sub-component --- */
 
 interface TabButtonProps {
   label: string

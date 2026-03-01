@@ -99,6 +99,52 @@ function validatePairs(pairs: ExtractedPair[]): ExtractedPair[] {
     }))
 }
 
+export async function extractVocabFromText(
+  text: string,
+  targetLang: Language
+): Promise<ExtractedPair[]> {
+  const client = getClient()
+  const langConfig = getLanguageConfig(targetLang)
+
+  const response = await client.chat.completions.create({
+    model: 'moonshot-v1-128k-vision-preview',
+    max_tokens: 4096,
+    temperature: 0.1,
+    messages: [
+      {
+        role: 'system',
+        content: `You are a vocabulary extractor. Given text content from a document, extract all vocabulary pairs where one language is Polish and the other is ${langConfig.nativeName} (${langConfig.label}).
+
+Return ONLY valid JSON in this exact format:
+{"pairs": [{"polish": "...", "translation": "...", "example": "..."}]}
+
+Rules:
+- "polish" = the Polish word or phrase
+- "translation" = the ${langConfig.nativeName} translation
+- "example" = an optional example sentence in ${langConfig.nativeName} (include only if present in the text)
+- If a word pair direction is reversed (${langConfig.nativeName} first, Polish second), still put Polish in "polish" and ${langConfig.nativeName} in "translation"
+- Ignore page numbers, exercise instructions, headers, and non-vocabulary content
+- If text contains vocabulary lists, word tables, or flashcard-style content, extract ALL pairs
+- If text is a lesson or article, extract key vocabulary terms with their translations
+- Clean up any formatting artifacts
+- If you cannot find any vocabulary pairs, return {"pairs": []}
+- Return ONLY the JSON object, no markdown, no explanation`,
+      },
+      {
+        role: 'user',
+        content: `Extract all vocabulary pairs from this text:\n\n${text}`,
+      },
+    ],
+  })
+
+  const content = response.choices[0]?.message?.content
+  if (!content) {
+    throw new Error('Model AI nie zwrocil odpowiedzi')
+  }
+
+  return parseOcrResponse(content)
+}
+
 export async function extractVocab(
   base64Image: string,
   targetLang: Language

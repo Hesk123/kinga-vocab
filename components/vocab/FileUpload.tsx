@@ -3,15 +3,15 @@
 import { useRef, useCallback } from 'react'
 import { motion } from 'framer-motion'
 
-interface OcrUploadProps {
+interface FileUploadProps {
   onFileSelected: (file: File) => void
   isLoading: boolean
   error: string | null
-  imagePreview: string | null
+  fileName: string | null
   onRetry: () => void
 }
 
-function CameraIcon() {
+function FileIcon() {
   return (
     <svg
       width="40"
@@ -24,8 +24,11 @@ function CameraIcon() {
       strokeLinejoin="round"
       style={{ color: 'var(--primary)' }}
     >
-      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
-      <circle cx="12" cy="13" r="3" />
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+      <polyline points="10 9 9 9 8 9" />
     </svg>
   )
 }
@@ -48,13 +51,13 @@ function SpinnerIcon() {
   )
 }
 
-export function OcrUpload({
+export function FileUpload({
   onFileSelected,
   isLoading,
   error,
-  imagePreview,
+  fileName,
   onRetry,
-}: OcrUploadProps) {
+}: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleClick = useCallback(() => {
@@ -67,7 +70,6 @@ export function OcrUpload({
       if (file) {
         onFileSelected(file)
       }
-      // Reset input so same file can be selected again
       if (inputRef.current) {
         inputRef.current.value = ''
       }
@@ -79,7 +81,7 @@ export function OcrUpload({
     (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault()
       const file = e.dataTransfer.files?.[0]
-      if (file && file.type.startsWith('image/')) {
+      if (file) {
         onFileSelected(file)
       }
     },
@@ -90,7 +92,6 @@ export function OcrUpload({
     e.preventDefault()
   }, [])
 
-  // Loading state
   if (isLoading) {
     return (
       <motion.div
@@ -99,23 +100,21 @@ export function OcrUpload({
         className="flex flex-col items-center gap-4 rounded-2xl p-8"
         style={{ background: 'var(--surface)' }}
       >
-        {imagePreview && (
-          <div className="overflow-hidden rounded-xl" style={{ maxWidth: 120 }}>
-            <img
-              src={imagePreview}
-              alt="Przeslane zdjecie"
-              className="h-auto w-full object-cover"
-              style={{ maxHeight: 90 }}
-            />
-          </div>
-        )}
         <SpinnerIcon />
         <p
           className="text-sm font-medium"
           style={{ color: 'var(--text-secondary)' }}
         >
-          Analizuje zdjecie...
+          Analizuje plik...
         </p>
+        {fileName && (
+          <p
+            className="text-xs truncate max-w-[200px]"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            {fileName}
+          </p>
+        )}
         <p
           className="text-xs"
           style={{ color: 'var(--text-muted)' }}
@@ -126,7 +125,6 @@ export function OcrUpload({
     )
   }
 
-  // Error state
   if (error) {
     return (
       <motion.div
@@ -154,7 +152,6 @@ export function OcrUpload({
     )
   }
 
-  // Idle state — upload area
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -164,10 +161,10 @@ export function OcrUpload({
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept=".txt,.csv,.tsv,.md,text/plain,text/csv,image/*"
         onChange={handleChange}
         className="hidden"
-        aria-label="Wybierz zdjecie"
+        aria-label="Wybierz plik"
       />
 
       <motion.div
@@ -183,7 +180,7 @@ export function OcrUpload({
         }}
         role="button"
         tabIndex={0}
-        aria-label="Zrob zdjecie lub wybierz plik ze zdjeciem slowek"
+        aria-label="Wybierz plik z slowkami"
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
@@ -191,19 +188,19 @@ export function OcrUpload({
           }
         }}
       >
-        <CameraIcon />
+        <FileIcon />
         <div className="text-center">
           <p
             className="text-sm font-semibold"
             style={{ color: 'var(--text)' }}
           >
-            Zrob zdjecie lub wybierz plik
+            Wybierz plik ze slowkami
           </p>
           <p
             className="mt-1 text-xs"
             style={{ color: 'var(--text-muted)' }}
           >
-            Zdjecie podrecznika, cwiczen lub notatek
+            Pliki tekstowe, CSV, zdjecia lub notatki
           </p>
         </div>
       </motion.div>
