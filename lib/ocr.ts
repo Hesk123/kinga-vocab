@@ -37,9 +37,10 @@ Rules:
 - "polish" = the POLISH word or phrase (this MUST be in Polish language)
 - "translation" = the ${langConfig.nativeName} translation (this MUST be in ${langConfig.nativeName})
 - "example" = an optional example sentence in ${langConfig.nativeName} (include only if visible in the image)
+- Extract ALL vocabulary: nouns, verbs, adjectives, adverbs, phrases, and expressions. Do NOT skip any word type.
 - If words appear in ${langConfig.nativeName} only, provide the Polish translation yourself
 - If words appear in Polish only, provide the ${langConfig.nativeName} translation yourself
-${targetLang === 'de' ? `- GERMAN ARTICLES: For ALL German nouns, ALWAYS include the article (der/die/das) before the noun. Example: "der Hund", "die Katze", "das Haus". This is mandatory for every noun.\n` : ''}- Ignore page numbers, exercise instructions, headers, and non-vocabulary content
+${targetLang === 'de' ? `- IMPORTANT FOR GERMAN: Extract ALL word types (nouns, verbs, adjectives, adverbs, phrases)\n- For German NOUNS: ALWAYS include the article (der/die/das). Examples: "der Hund", "die Katze", "das Haus"\n- For German VERBS: use infinitive form. Examples: "sprechen", "laufen"\n- For German ADJECTIVES: use base form. Examples: "schnell", "groß"\n` : ''}- Ignore page numbers, exercise instructions, headers, and non-vocabulary content
 - Clean up any OCR artifacts (fix obvious typos in extracted text)
 - If you cannot find any vocabulary pairs, return {"pairs": []}
 - Return ONLY the JSON object, no markdown, no explanation`
@@ -127,10 +128,11 @@ Rules:
 - "polish" = the POLISH word or phrase (this MUST be in Polish language)
 - "translation" = the ${langConfig.nativeName} translation (this MUST be in ${langConfig.nativeName})
 - "example" = an optional example sentence in ${langConfig.nativeName} (include only if present in the text)
+- Extract ALL vocabulary: nouns, verbs, adjectives, adverbs, phrases, and expressions. Do NOT skip any word type.
 - If words appear in ${langConfig.nativeName} only, provide the Polish translation yourself
 - If words appear in Polish only, provide the ${langConfig.nativeName} translation yourself
-${targetLang === 'de' ? `- GERMAN ARTICLES: For ALL German nouns, ALWAYS include the article (der/die/das) before the noun. Example: "der Hund", "die Katze", "das Haus". This is mandatory for every noun.\n` : ''}- Ignore page numbers, exercise instructions, headers, and non-vocabulary content
-- If text contains vocabulary lists, word tables, or flashcard-style content, extract ALL pairs
+${targetLang === 'de' ? `- IMPORTANT FOR GERMAN: Extract ALL word types (nouns, verbs, adjectives, adverbs, phrases)\n- For German NOUNS: ALWAYS include the article (der/die/das). Examples: "der Hund", "die Katze", "das Haus"\n- For German VERBS: use infinitive form. Examples: "sprechen", "laufen"\n- For German ADJECTIVES: use base form. Examples: "schnell", "groß"\n` : ''}- Ignore page numbers, exercise instructions, headers, and non-vocabulary content
+- If text contains vocabulary lists, word tables, or flashcard-style content, extract ALL pairs regardless of word type
 - If text is a lesson or article, extract key vocabulary terms with their translations
 - Clean up any formatting artifacts
 - If you cannot find any vocabulary pairs, return {"pairs": []}
