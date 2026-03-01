@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import type { Language } from '@/lib/types'
 import { extractVocabFromText, extractVocab } from '@/lib/ocr'
+import { extractTextFromPdf, extractTextFromDocx } from '@/lib/file-parser'
 
 interface ExtractedPair {
   polish: string
@@ -75,6 +76,16 @@ function isImageFile(file: File): boolean {
   return IMAGE_TYPES.some(t => file.type.startsWith(t.split('/')[0])) || file.type.startsWith('image/')
 }
 
+function isPdfFile(file: File): boolean {
+  if (file.type === 'application/pdf') return true
+  return file.name.toLowerCase().endsWith('.pdf')
+}
+
+function isDocxFile(file: File): boolean {
+  if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return true
+  return file.name.toLowerCase().endsWith('.docx')
+}
+
 export function useFileImport(lang: Language): UseFileImportReturn {
   const [state, setState] = useState<FileImportState>('idle')
   const [pairs, setPairs] = useState<ExtractedPair[]>([])
@@ -100,6 +111,20 @@ export function useFileImport(lang: Language): UseFileImportReturn {
           // Use vision API for images
           const base64 = await readFileAsBase64(file)
           extractedPairs = await extractVocab(base64, lang)
+        } else if (isPdfFile(file)) {
+          // Extract text from PDF, then send to AI
+          const text = await extractTextFromPdf(file)
+          if (text.trim().length < 5) {
+            throw new Error('Plik PDF jest pusty lub nie zawiera tekstu.')
+          }
+          extractedPairs = await extractVocabFromText(text, lang)
+        } else if (isDocxFile(file)) {
+          // Extract text from DOCX, then send to AI
+          const text = await extractTextFromDocx(file)
+          if (text.trim().length < 5) {
+            throw new Error('Plik Word jest pusty lub nie zawiera tekstu.')
+          }
+          extractedPairs = await extractVocabFromText(text, lang)
         } else if (isTextFile(file)) {
           // Read as text and send to AI
           const text = await readFileAsText(file)
@@ -108,7 +133,7 @@ export function useFileImport(lang: Language): UseFileImportReturn {
           }
           extractedPairs = await extractVocabFromText(text, lang)
         } else {
-          // Try reading as text for unknown types (pdf, docx won't work well but .txt with wrong mime will)
+          // Try reading as text for unknown types (.txt with wrong mime, etc.)
           try {
             const text = await readFileAsText(file)
             if (text.trim().length < 5) {
@@ -116,7 +141,7 @@ export function useFileImport(lang: Language): UseFileImportReturn {
             }
             extractedPairs = await extractVocabFromText(text, lang)
           } catch {
-            throw new Error('Nieobslugiwany format pliku. Uzyj: zdjecia, .txt, .csv lub .md')
+            throw new Error('Nieobslugiwany format pliku. Uzyj: PDF, Word, zdjecia, .txt lub .csv')
           }
         }
 

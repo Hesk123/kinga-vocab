@@ -161,7 +161,7 @@ export function FileUpload({
       <input
         ref={inputRef}
         type="file"
-        accept=".txt,.csv,.tsv,.md,text/plain,text/csv,image/*"
+        accept=".txt,.csv,.tsv,.md,.pdf,.docx,text/plain,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*"
         onChange={handleChange}
         className="hidden"
         aria-label="Wybierz plik"
@@ -200,7 +200,7 @@ export function FileUpload({
             className="mt-1 text-xs"
             style={{ color: 'var(--text-muted)' }}
           >
-            Pliki tekstowe, CSV, zdjecia lub notatki
+            PDF, Word, pliki tekstowe lub zdjecia
           </p>
         </div>
       </motion.div>
